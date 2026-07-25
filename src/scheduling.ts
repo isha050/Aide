@@ -199,7 +199,7 @@ export async function findMeetingSlot(
     };
   }
 
-  const resolvedEmails = attendees.map(resolveEmployeeEmail);
+  const resolvedEmails = await Promise.all(attendees.map(resolveEmployeeEmail));
   const windowDays = SEARCH_WINDOW_DAYS[urgency];
 
   const now = new Date();
@@ -319,7 +319,7 @@ export async function bookMeeting(
     return { confirmed: false, meetingId: "" };
   }
 
-  const resolved = attendees.map(resolveEmployeeEmail);
+  const resolved = await Promise.all(attendees.map(resolveEmployeeEmail));
 
   // Default to 30 mins if not specified elsewhere (since the input to bookMeeting doesn't have duration).
   // In a real app we'd pass duration in BookMeetingInput, but assuming 30 min default here based on findSlot
@@ -336,8 +336,8 @@ export async function bookMeeting(
   const startMs = startDate.getTime();
   const endMs = endDate.getTime();
   
-  const hasConflict = attendees.some(attendee => {
-     const email = resolveEmployeeEmail(attendee);
+  const conflicts = await Promise.all(attendees.map(async (attendee) => {
+     const email = await resolveEmployeeEmail(attendee);
      const personData = availability[email];
      if (!personData || !personData.busy) return false;
      
@@ -346,7 +346,8 @@ export async function bookMeeting(
         const bEnd = new Date(block.end).getTime();
         return startMs < bEnd && bStart < endMs;
      });
-  });
+  }));
+  const hasConflict = conflicts.some(c => c);
 
   if (hasConflict) {
     return {

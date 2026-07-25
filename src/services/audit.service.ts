@@ -1,5 +1,6 @@
-import fs from 'fs';
-import path from 'path';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 export interface AuditLogEntry {
   timestamp: string;
@@ -12,65 +13,40 @@ export interface AuditLogEntry {
   message?: string;
 }
 
-const DATA_DIR = path.join(process.cwd(), '.data');
-const AUDIT_FILE = path.join(DATA_DIR, 'audit.json');
-
-// Ensure the .data directory exists
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-}
-
-// Initialize file if it doesn't exist
-if (!fs.existsSync(AUDIT_FILE)) {
-  fs.writeFileSync(AUDIT_FILE, JSON.stringify([], null, 2), 'utf-8');
-}
-
-/**
- * Audit Logger Service
- * Persists all agent and tool execution events into a local JSON file.
- * This file serves as the data source for the Dashboard's Audit Replay and Live Evaluation Panel.
- */
 export class AuditService {
-  /**
-   * Append a new entry to the audit log.
-   */
-  static log(entry: Omit<AuditLogEntry, 'timestamp'>) {
+  static async log(entry: Omit<AuditLogEntry, 'timestamp'>) {
     try {
-      const currentLogs = this.readLogs();
-      const newEntry: AuditLogEntry = {
-        timestamp: new Date().toISOString(),
-        ...entry,
-      };
-      
-      currentLogs.push(newEntry);
-      
-      // Write back synchronously for now (fine for low volume local dev).
-      // In production, this would go to a database or asynchronous stream.
-      fs.writeFileSync(AUDIT_FILE, JSON.stringify(currentLogs, null, 2), 'utf-8');
+      await prisma.auditLog.create({
+        data: {
+          timestamp: new Date().toISOString(),
+          type: entry.type,
+          agent: entry.agent,
+          tool: entry.tool,
+          input: entry.input ? (entry.input as any) : undefined,
+          output: entry.output ? (entry.output as any) : undefined,
+          latencyMs: entry.latencyMs,
+          message: entry.message,
+        }
+      });
     } catch (err) {
       console.error('[AuditService] Failed to write audit log:', err);
     }
   }
 
-  /**
-   * Read all logs.
-   */
-  static readLogs(): AuditLogEntry[] {
+  static async readLogs(): Promise<AuditLogEntry[]> {
     try {
-      if (!fs.existsSync(AUDIT_FILE)) return [];
-      const content = fs.readFileSync(AUDIT_FILE, 'utf-8');
-      return JSON.parse(content) as AuditLogEntry[];
+      const logs = await prisma.auditLog.findMany({
+        orderBy: { timestamp: 'asc' }
+      });
+      return logs as unknown as AuditLogEntry[];
     } catch (err) {
       console.error('[AuditService] Failed to read audit log:', err);
       return [];
     }
   }
 
-  /**
-   * Get metrics for the Live Evaluation Panel.
-   */
-  static getMetrics() {
-    const logs = this.readLogs();
+  static async getMetrics() {
+    const logs = await this.readLogs();
     const toolCalls = logs.filter(l => l.type === 'tool_result');
     const successes = toolCalls.filter(l => !l.output?.error);
     const errors = toolCalls.filter(l => l.output?.error);

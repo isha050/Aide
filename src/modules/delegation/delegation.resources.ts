@@ -1,6 +1,7 @@
 import { ResourceDecorator as Resource, ExecutionContext } from '@nitrostack/core';
-import roster from '../../resources/roster.json' with { type: 'json' };
+import { PrismaClient } from '@prisma/client';
 
+const prisma = new PrismaClient();
 
 /**
  * Exposes the team roster data as an MCP resource at `roster://team`.
@@ -14,6 +15,19 @@ export class DelegationResources {
   })
   async getRoster(uri: string, ctx: ExecutionContext) {
     ctx.logger.info('Fetching team roster');
+    const members = await prisma.member.findMany({
+      include: { skills: true }
+    });
+
+    const roster = {
+      members: members.map(m => ({
+        name: m.name,
+        email: m.email,
+        role: m.role,
+        currentWorkload: m.currentWorkload,
+        skills: m.skills.map(s => s.skill)
+      }))
+    };
 
     return {
       contents: [
