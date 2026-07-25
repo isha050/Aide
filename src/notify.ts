@@ -1,4 +1,4 @@
-import { DraftedMessage } from "./types";
+import { DraftedMessage } from "./types.js";
 import process from "process";
 import dotenv from "dotenv";
 dotenv.config();
