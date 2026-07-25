@@ -1,29 +1,20 @@
-/**
- * Calculator MCP Server
- * 
- * Main entry point for the MCP server.
- * Uses the @McpApp decorator pattern for clean, NestJS-style architecture.
- * 
- * Transport Configuration:
- * - Development (NODE_ENV=development): STDIO only
- * - Production (NODE_ENV=production): Dual transport (STDIO + HTTP SSE)
- */
+import { handleRequest } from "./router";
+import type { Request } from "./types";
 
-import 'dotenv/config';
-import { McpApplicationFactory } from '@nitrostack/core';
-import { AppModule } from './app.module.js';
+// Temporary local test helper so you can call it from terminal/REPL
+async function test() {
+  const sample: Request = {
+    text: "Book a meeting with eng and design for incident review",
+    userId: "user-123",
+    timestamp: new Date().toISOString(),
+  };
 
-/**
- * Bootstrap the application
- */
-async function bootstrap() {
-  // Create and start the MCP server
-  const server = await McpApplicationFactory.create(AppModule);
-  await server.start();
+  const result = await handleRequest(sample);
+  console.log(JSON.stringify(result, null, 2));
 }
 
-// Start the application
-bootstrap().catch((error) => {
-  console.error('❌ Failed to start server:', error);
-  process.exit(1);
-});
+// Run the test when you start the process
+test().catch(console.error);
+
+// Keep the original NitroStack bootstrap if the starter has one.
+// If the starter exports a server, leave it; otherwise this is enough for solo testing.
