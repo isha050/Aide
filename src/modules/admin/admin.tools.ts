@@ -1,20 +1,9 @@
 import { ToolDecorator as Tool, ExecutionContext, z } from '@nitrostack/core';
-import * as fs from 'fs';
-import * as path from 'path';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 export class AdminTools {
-
-  private loadJsonFile(filename: string): any {
-    try {
-      const filePath = path.join(process.cwd(), 'src', 'resources', filename);
-      if (fs.existsSync(filePath)) {
-        return JSON.parse(fs.readFileSync(filePath, 'utf8'));
-      }
-    } catch {
-      // ignore
-    }
-    return null;
-  }
 
   private resolvePolicyPath(policy: any, dotPath: string): any {
     return dotPath.split('.').reduce(
@@ -43,7 +32,9 @@ export class AdminTools {
     })
   })
   async checkAdminRequest(input: any, ctx: ExecutionContext) {
-    const policy = this.loadJsonFile('policy.json') || {};
+    const policyDoc = await prisma.configDocument.findUnique({ where: { key: 'POLICY' } });
+    const policy: any = policyDoc?.data || {};
+    
     const { requestType, amount, details } = input;
     const detailLower = details.toLowerCase();
 
@@ -79,14 +70,14 @@ export class AdminTools {
 
     // Handle the specific 'delegation' use-case
     if (requestType.startsWith('delegation')) {
-      const roster = this.loadJsonFile('roster.json');
-      const tasks = this.loadJsonFile('tasks.json');
+      const members = await prisma.member.findMany({ include: { skills: true } });
+      const tasks = await prisma.task.findMany({ include: { owner: true } });
       const delegPolicy = this.resolvePolicyPath(policy, requestType) || {};
       
       // Extract person name from details (e.g. "Bob", "Alice")
       let personName = '';
-      if (roster && roster.members) {
-        for (const m of roster.members) {
+      if (members) {
+        for (const m of members) {
           if (detailLower.includes(m.name.toLowerCase())) {
             personName = m.name;
             break;
@@ -95,12 +86,11 @@ export class AdminTools {
       }
 
       if (personName) {
-        const member = roster.members.find((m: any) => m.name === personName);
+        const member = members.find((m: any) => m.name === personName);
         
-        // Calculate real workload if tasks.json exists, else use roster workload
-        let currentWorkload = member.currentWorkload || 0;
-        if (tasks && tasks.tasks) {
-          currentWorkload = tasks.tasks.filter((t: any) => t.owner === personName && t.status !== 'Completed').length;
+        let currentWorkload = member?.currentWorkload || 0;
+        if (tasks) {
+          currentWorkload = tasks.filter((t: any) => t.owner?.name === personName && t.status !== 'Completed').length;
         }
 
         // Check if details mention a specific task count override (e.g. "Bob already has 9 tasks")
@@ -123,11 +113,13 @@ export class AdminTools {
         const skillEnabled = delegPolicy.skillBasedAssignment?.enabled;
         if (skillEnabled) {
           let hasSkill = false;
-          for (const skill of member.skills) {
-            if (detailLower.includes(skill.toLowerCase())) {
-              hasSkill = true;
-              break;
-            }
+          if (member) {
+              for (const skill of member.skills) {
+                if (detailLower.includes(skill.skill.toLowerCase())) {
+                  hasSkill = true;
+                  break;
+                }
+              }
           }
           if (!hasSkill && !delegPolicy.skillBasedAssignment?.fallbackToLowestWorkload) {
             return {

@@ -1,6 +1,7 @@
 import { ToolDecorator as Tool, ExecutionContext, z } from '@nitrostack/core';
-import * as fs from 'fs';
-import * as path from 'path';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 export class CommsTools {
   @Tool({
@@ -14,12 +15,12 @@ export class CommsTools {
   async draftMessage(input: any, ctx: ExecutionContext) {
     let channelsConfig: any = {};
     try {
-      const channelsPath = path.join(process.cwd(), 'src', 'resources', 'channels.json');
-      if (fs.existsSync(channelsPath)) {
-        channelsConfig = JSON.parse(fs.readFileSync(channelsPath, 'utf8'));
+      const channelsDoc = await prisma.configDocument.findUnique({ where: { key: 'CHANNELS' } });
+      if (channelsDoc && channelsDoc.data) {
+        channelsConfig = channelsDoc.data;
       }
     } catch (e) {
-      ctx.logger.error('Failed to read channels.json');
+      ctx.logger.error('Failed to read CHANNELS from DB');
     }
 
     const { action, details } = input;

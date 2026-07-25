@@ -1,6 +1,7 @@
 import { ToolDecorator as Tool, ExecutionContext, z } from '@nitrostack/core';
-import * as fs from 'fs';
-import * as path from 'path';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 export class DelegationTools {
 
@@ -18,20 +19,16 @@ export class DelegationTools {
             urgency: input.urgency
         });
 
-        // Read team roster
-        const rosterPath = path.join(process.cwd(), 'src', 'resources', 'roster.json');
-        const rosterFile = fs.readFileSync(rosterPath, 'utf-8');
-        const roster = JSON.parse(rosterFile);
-
+        const members = await prisma.member.findMany({ include: { skills: true } });
         const taskDesc = input.taskDescription.toLowerCase();
 
         // Check for skill matches
-        const matchedMembers = roster.members.filter((member: any) => {
-            return member.skills.some((skill: string) => taskDesc.includes(skill.toLowerCase()));
+        const matchedMembers = members.filter((member: any) => {
+            return member.skills.some((skill: any) => taskDesc.includes(skill.skill.toLowerCase()));
         });
 
         // Decide candidate pool (matched or everyone)
-        const candidates = matchedMembers.length > 0 ? matchedMembers : roster.members;
+        const candidates = matchedMembers.length > 0 ? matchedMembers : members;
 
         // Find the member with the least workload in the candidate pool
         const bestMember = candidates.reduce((best: any, current: any) => {
@@ -63,9 +60,26 @@ export class DelegationTools {
             reason: reason
         };
 
+        const taskId = `TASK-${Date.now()}`;
+        
+        await prisma.task.create({
+            data: {
+                taskId: taskId,
+                description: input.taskDescription,
+                status: 'In Progress',
+                deadline: assignment.deadline,
+                ownerId: bestMember.id
+            }
+        });
+
+        await prisma.member.update({
+            where: { id: bestMember.id },
+            data: { currentWorkload: { increment: 1 } }
+        });
+
         ctx.logger.info('Assignment decision made', assignment);
 
-        return assignment;
+        return { ...assignment, taskId };
     }
 
 
@@ -76,15 +90,16 @@ export class DelegationTools {
     })
     async getTaskBoard(input: any, ctx: ExecutionContext) {
         ctx.logger.info('Fetching task board');
+        const tasks = await prisma.task.findMany({ include: { owner: true } });
 
-        const tasksPath = path.join(process.cwd(), 'src', 'resources', 'tasks.json');
-
-        const file = fs.readFileSync(tasksPath, 'utf-8');
-
-        const tasks = JSON.parse(file);
-
-        return tasks;
+        return {
+            tasks: tasks.map(t => ({
+                id: t.taskId,
+                status: t.status,
+                owner: t.owner?.name,
+                deadline: t.deadline
+            }))
+        };
     }
-
 
 }

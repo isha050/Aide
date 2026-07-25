@@ -1,10 +1,11 @@
 import 'dotenv/config';
-import localCalendar from "../resources/calendar.json" with { type: 'json' };
-import roster from "../resources/roster.json" with { type: 'json' };
+import { PrismaClient } from '@prisma/client';
 import { google } from 'googleapis';
 import fs from 'fs';
 import path from 'path';
 import nodemailer from 'nodemailer';
+
+const prisma = new PrismaClient();
 
 export interface BusyRange {
   start: string;
@@ -19,47 +20,36 @@ export interface PersonAvailability {
 export type AvailabilityMap = Record<string, PersonAvailability>;
 
 /**
- * Resolve a name or email into a full email address using roster.json lookup.
- * e.g., "Sumithra" -> "sumithra13022004@gmail.com"
- *       "Alice" -> "alice@company.com"
- *       "bob@acme.com" -> "bob@acme.com"
+ * Resolve a name or email into a full email address using DB lookup.
  */
-export function resolveEmployeeEmail(input: string): string {
+export async function resolveEmployeeEmail(input: string): Promise<string> {
   const cleanInput = input.trim().toLowerCase();
 
-  // 1. Match against roster.json members by name or email
-  const member = roster.members.find(
-    (m: any) =>
-      m.name.toLowerCase() === cleanInput ||
-      (m.email && m.email.toLowerCase() === cleanInput)
-  );
+  const member = await prisma.member.findFirst({
+    where: {
+      OR: [
+        { email: cleanInput },
+        { name: cleanInput }
+      ]
+    }
+  });
 
   if (member && member.email) {
     return member.email.toLowerCase().trim();
   }
 
-  // 2. If input already contains an '@', return it
   if (cleanInput.includes("@")) {
     return cleanInput;
   }
 
-  // 3. Fallback domain mapping
   const domain = process.env.COMPANY_DOMAIN || "gmail.com";
   return `${cleanInput}@${domain}`;
 }
 
-/**
- * Extract clean name/key for fallback lookup.
- * e.g., "alice@company.com" -> "alice"
- */
 export function extractUsername(emailOrName: string): string {
   return emailOrName.split("@")[0].toLowerCase().trim();
 }
 
-/**
- * Query live Google Calendar FreeBusy API for a list of employee emails.
- * Uses Node 18+ builtin fetch — no heavy SDK required.
- */
 async function fetchGoogleFreeBusy(
   emails: string[],
   timeMin: string,
@@ -109,17 +99,12 @@ async function fetchGoogleFreeBusy(
   return result;
 }
 
-/**
- * Main Entry Point: Get availability for attendees.
- * - Tries Live Google Calendar API if GOOGLE_CALENDAR_API_KEY is configured in .env
- * - Gracefully falls back to local calendar.json fixture for offline dev & tests.
- */
 export async function getAvailabilityForAttendees(
   attendeeInputs: string[],
   timeMin: string,
   timeMax: string
 ): Promise<{ availability: AvailabilityMap; isLive: boolean }> {
-  const resolvedEmails = attendeeInputs.map(resolveEmployeeEmail);
+  const resolvedEmails = await Promise.all(attendeeInputs.map(resolveEmployeeEmail));
   const apiKey = process.env.GOOGLE_CALENDAR_API_KEY;
 
   if (apiKey) {
@@ -136,21 +121,23 @@ export async function getAvailabilityForAttendees(
     }
   }
 
-  // Fallback to local mock data (mapping emails/usernames)
   const mockData: AvailabilityMap = {};
   for (const input of attendeeInputs) {
-    const email = resolveEmployeeEmail(input);
-    const username = extractUsername(input);
-    const fallbackPerson = (localCalendar as Record<string, PersonAvailability>)[username] || (localCalendar as Record<string, PersonAvailability>)["alice"];
+    const email = await resolveEmployeeEmail(input);
+    const member = await prisma.member.findUnique({
+      where: { email },
+      include: { calendarWorkingHours: true, calendarBusyBlocks: true }
+    });
 
     const startW = process.env.WORKING_HOURS_START || "03:30:00Z";
     const endW = process.env.WORKING_HOURS_END || "12:30:00Z";
 
+    const wh = member?.calendarWorkingHours;
     mockData[email] = {
-      busy: fallbackPerson?.busy ?? [],
-      workingHours: fallbackPerson?.workingHours ?? {
-        start: `${timeMin.slice(0, 10)}T${startW}`,
-        end: `${timeMin.slice(0, 10)}T${endW}`,
+      busy: member?.calendarBusyBlocks?.map(b => ({ start: b.start, end: b.end })) ?? [],
+      workingHours: {
+        start: `${timeMin.slice(0, 10)}T${wh?.start || startW}`,
+        end: `${timeMin.slice(0, 10)}T${wh?.end || endW}`,
       },
     };
   }
@@ -185,10 +172,6 @@ async function sendEtherealInvite(attendees: string[], summary: string, startTim
   }
 }
 
-/**
- * Attempts to book a meeting via Google Calendar events.insert API.
- * Uses a Service Account JSON file if present, otherwise falls back.
- */
 export async function bookGoogleCalendarEvent(
   attendees: string[],
   startTime: string,
@@ -198,7 +181,6 @@ export async function bookGoogleCalendarEvent(
   
   const keyFilePath = path.join(process.cwd(), '.data', 'google-credentials.json');
   
-  // ALWAYS send out email invites to attendees (using mock Ethereal mail so it works in dev)
   await sendEtherealInvite(attendees, summary, startTime);
 
   if (fs.existsSync(keyFilePath)) {
@@ -211,18 +193,30 @@ export async function bookGoogleCalendarEvent(
       const calendar = google.calendar({ version: 'v3', auth });
 
       const res = await calendar.events.insert({
-        calendarId: 'primary', // Note: Make sure the Service Account has been shared to the target calendar
+        calendarId: 'primary',
         requestBody: {
           summary,
           description: `Attendees: ${attendees.join(', ')}`,
           start: { dateTime: startTime },
           end: { dateTime: endTime },
-          // We omit 'attendees' because standard Service Accounts cannot invite 
-          // others without Google Workspace Domain-Wide Delegation of Authority.
         }
       });
 
       if (res.data && res.data.id) {
+        // Record busy blocks in local DB
+        for (const attendeeEmail of attendees) {
+          const email = await resolveEmployeeEmail(attendeeEmail);
+          const member = await prisma.member.findUnique({ where: { email } });
+          if (member) {
+            await prisma.calendarBusyBlock.create({
+              data: {
+                start: startTime,
+                end: endTime,
+                memberId: member.id
+              }
+            });
+          }
+        }
         return { confirmed: true, meetingId: res.data.id, live: true };
       }
     } catch (err: any) {
@@ -232,7 +226,21 @@ export async function bookGoogleCalendarEvent(
     console.warn(`[CalendarService] .data/google-credentials.json not found. Falling back to mock booking.`);
   }
 
-  // Fallback to local booking if API call fails or no credentials file
+  // Record busy blocks in local DB for mock meetings too
+  for (const attendeeEmail of attendees) {
+    const email = await resolveEmployeeEmail(attendeeEmail);
+    const member = await prisma.member.findUnique({ where: { email } });
+    if (member) {
+      await prisma.calendarBusyBlock.create({
+        data: {
+          start: startTime,
+          end: endTime,
+          memberId: member.id
+        }
+      });
+    }
+  }
+
   return {
     confirmed: true,
     meetingId: `mock-meeting-${Date.now()}-${attendees[0]?.split("@")[0] || "unknown"}`,

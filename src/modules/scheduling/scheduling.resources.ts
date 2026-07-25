@@ -1,5 +1,7 @@
 import { ResourceDecorator as Resource, ExecutionContext } from '@nitrostack/core';
-import calendar from '../../resources/calendar.json' with { type: 'json' };
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 /**
  * Exposes the mock calendar data as an MCP resource at `calendar://availability`.
@@ -28,6 +30,23 @@ export class SchedulingResources {
   })
   async getAvailability(uri: string, ctx: ExecutionContext) {
     ctx.logger.info('Fetching calendar availability');
+
+    const members = await prisma.member.findMany({
+      include: {
+        calendarBusyBlocks: true,
+        calendarWorkingHours: true
+      }
+    });
+
+    const calendar: any = {};
+    for (const m of members) {
+      if (m.email) {
+        calendar[m.email] = {
+          busy: m.calendarBusyBlocks.map((b: any) => ({ start: b.start, end: b.end })),
+          workingHours: m.calendarWorkingHours ? { start: m.calendarWorkingHours.start, end: m.calendarWorkingHours.end } : undefined
+        };
+      }
+    }
 
     return {
       contents: [

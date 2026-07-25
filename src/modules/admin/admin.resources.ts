@@ -1,7 +1,8 @@
 import { ResourceDecorator as Resource, ExecutionContext } from '@nitrostack/core';
 import { AuditService } from '../../services/audit.service.js';
-import * as fs from 'fs';
-import * as path from 'path';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 /**
  * Exposes the audit log data as an MCP resource at `audit://logs`.
@@ -21,22 +22,10 @@ export class AdminResources {
         {
           uri,
           mimeType: 'application/json',
-          text: JSON.stringify(AuditService.readLogs(), null, 2),
+          text: JSON.stringify(await AuditService.readLogs(), null, 2),
         },
       ],
     };
-  }
-
-  private loadJsonFile(filename: string): any {
-    try {
-      const filePath = path.join(process.cwd(), 'src', 'resources', filename);
-      if (fs.existsSync(filePath)) {
-        return JSON.parse(fs.readFileSync(filePath, 'utf8'));
-      }
-    } catch {
-      // ignore
-    }
-    return null;
   }
 
   @Resource({
@@ -47,7 +36,8 @@ export class AdminResources {
   })
   async getPolicy(uri: string, ctx: ExecutionContext) {
     ctx.logger.info('Fetching enterprise policy');
-    const policy = this.loadJsonFile('policy.json') || {};
+    const policyDoc = await prisma.configDocument.findUnique({ where: { key: 'POLICY' } });
+    const policy = policyDoc?.data || {};
     return {
       contents: [{ uri, mimeType: 'application/json', text: JSON.stringify(policy, null, 2) }]
     };
@@ -61,7 +51,8 @@ export class AdminResources {
   })
   async getChannels(uri: string, ctx: ExecutionContext) {
     ctx.logger.info('Fetching channels config');
-    const channels = this.loadJsonFile('channels.json') || {};
+    const channelsDoc = await prisma.configDocument.findUnique({ where: { key: 'CHANNELS' } });
+    const channels = channelsDoc?.data || {};
     return {
       contents: [{ uri, mimeType: 'application/json', text: JSON.stringify(channels, null, 2) }]
     };
