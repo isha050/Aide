@@ -7,9 +7,9 @@ import type {
   TaskAssignment,
   AdminDecision,
   DraftedMessage,
-} from "./types";
+} from "./types.js";
 
-import { findMeetingSlot } from "./scheduling";
+import { findMeetingSlot } from "./scheduling.js";
 
 // ========== ROUTING KEYWORDS ==========
 // The exact keyword sets that decide which sub-task a request needs.

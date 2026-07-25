@@ -1,5 +1,5 @@
 import { ResourceDecorator as Resource, ExecutionContext } from '@nitrostack/core';
-import calendar from '../../resources/calendar.json';
+import calendar from '../../resources/calendar.json' with { type: 'json' };
 
 /**
  * Exposes the mock calendar data as an MCP resource at `calendar://availability`.

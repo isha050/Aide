@@ -11,6 +11,7 @@ export interface FindMeetingSlotInput {
   attendees: string[];
   durationMinutes: number;
   urgency: "low" | "medium" | "high";
+  preferredDate?: string;
 }
 
 export interface FindMeetingSlotOutput {
@@ -184,7 +185,7 @@ function getNormalizedBusyBlocks(
 export async function findMeetingSlot(
   input: FindMeetingSlotInput
 ): Promise<FindMeetingSlotOutput> {
-  const { attendees, durationMinutes, urgency } = input;
+  const { attendees, durationMinutes, urgency, preferredDate } = input;
 
   if (attendees.length === 0) {
     return {
@@ -199,9 +200,15 @@ export async function findMeetingSlot(
 
   const now = new Date();
   const searchStart = new Date(now);
+  if (preferredDate) {
+    const prefDate = new Date(preferredDate);
+    if (!isNaN(prefDate.getTime())) {
+      searchStart.setTime(prefDate.getTime());
+    }
+  }
   searchStart.setUTCHours(0, 0, 0, 0);
 
-  const searchEnd = new Date(now);
+  const searchEnd = new Date(searchStart);
   searchEnd.setUTCDate(searchEnd.getUTCDate() + windowDays);
   searchEnd.setUTCHours(23, 59, 59, 999);
 
@@ -231,7 +238,7 @@ export async function findMeetingSlot(
   const proposedSlots: string[] = [];
   const conflictSet = new Set<string>();
 
-  let candidate = new Date(now);
+  let candidate = new Date(searchStart);
   candidate.setUTCMinutes(0, 0, 0);
   candidate.setUTCHours(startHour);
   if (candidate < now) {
@@ -352,8 +359,22 @@ export async function bookMeeting(
     `Meeting with ${attendees.join(", ")}`
   );
 
+  if (res.confirmed) {
+    try {
+      const { postToSlack } = await import('./notify.js');
+      await postToSlack({
+        text: `Meeting booked successfully with ${attendees.join(", ")} starting at ${startDate.toISOString()}`,
+        channel: '#general',
+        format: 'slack'
+      });
+    } catch (e) {
+      console.warn("[Scheduling] Failed to send slack notification", e);
+    }
+  }
+
   return {
     confirmed: res.confirmed,
     meetingId: res.meetingId,
   };
 }
+

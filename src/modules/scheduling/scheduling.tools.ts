@@ -43,6 +43,7 @@ export class SchedulingTools {
         .describe(
           'Search urgency — high: 1-day window, medium: 3-day, low: 7-day'
         ),
+      preferredDate: z.string().optional().describe('Optional ISO date (e.g. "2026-07-30") to begin search from'),
     }),
     examples: {
       request: {
@@ -71,11 +72,13 @@ export class SchedulingTools {
     const attendees = parseAttendees(input.attendees);
     const durationMinutes = Number(input.durationMinutes) || 30;
     const urgency = (input.urgency as 'low' | 'medium' | 'high') || 'high';
+    const preferredDate = input.preferredDate;
 
     ctx.logger.info('Finding meeting slot', {
       attendees,
       durationMinutes,
       urgency,
+      preferredDate,
     });
 
     try {
@@ -83,6 +86,7 @@ export class SchedulingTools {
         attendees,
         durationMinutes,
         urgency,
+        preferredDate,
       });
 
       ctx.logger.info('Slot search complete', {
