@@ -220,16 +220,49 @@
             animation: pulse 2s ease-in-out infinite;
         }
 
+        .status-dot.processing {
+            background: #f59e0b;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
         @keyframes pulse {
-
-            0%,
-            100% {
+            0%, 100% {
                 opacity: 1;
+                transform: scale(1);
             }
-
             50% {
-                opacity: 0.5;
+                opacity: 0.7;
+                transform: scale(1.2);
             }
+        }
+
+        .processing-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #3b82f6;
+            font-size: 14px;
+            margin-top: 12px;
+        }
+
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid #e0e7ff;
+            border-top: 2px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .badge.rejected {
+            background: #fee2e2;
+            color: #991b1b;
         }
 
         .message-preview {
@@ -337,21 +370,21 @@
                 <h3>Meeting Scheduled</h3>
                 <div class="card-content">
                     <div class="row">
-                        <span class="label">Date & Time</span>
-                        <span class="value">Tue, Jan 15 · 2:00 PM UTC</span>
+                        <span class="label">Date &amp; Time</span>
+                        <span class="value" id="meeting-time">Tue, Jan 15 · 2:00 PM UTC</span>
                     </div>
                     <div class="row">
                         <span class="label">Duration</span>
-                        <span class="value">60 minutes</span>
+                        <span class="value" id="meeting-duration">60 minutes</span>
                     </div>
                     <div class="row">
                         <span class="label">Confidence</span>
-                        <span class="badge approved">High</span>
+                        <span class="badge approved" id="meeting-confidence">High</span>
                     </div>
                     <div class="row">
                         <span class="label">Attendees</span>
                     </div>
-                    <div class="attendees-list">
+                    <div class="attendees-list" id="meeting-attendees">
                         <div class="attendee">
                             <div class="attendee-avatar">A</div>
                             <span>Alice (Eng Lead)</span>
@@ -374,7 +407,7 @@
                 <div class="card-content">
                     <div class="row">
                         <span class="label">Owner</span>
-                        <span class="value primary">Alice</span>
+                        <span class="value primary" id="task-owner">Alice</span>
                     </div>
                     <div class="row">
                         <span class="label">Task</span>
@@ -382,15 +415,15 @@
                     </div>
                     <div class="row">
                         <span class="label">Due Date</span>
-                        <span class="value">Fri, Jan 17</span>
+                        <span class="value" id="task-deadline">Fri, Jan 17</span>
                     </div>
                     <div class="row">
                         <span class="label">Priority</span>
-                        <span class="badge high">High</span>
+                        <span class="badge high" id="task-priority">High</span>
                     </div>
                     <div class="row">
                         <span class="label">Reason</span>
-                        <span class="value">Alice has lowest workload on incident response</span>
+                        <span class="value" id="task-reason">Alice has lowest workload on incident response</span>
                     </div>
                 </div>
             </div>
@@ -401,11 +434,11 @@
                 <div class="card-content">
                     <div class="row">
                         <span class="label">Status</span>
-                        <span class="badge approved">Approved</span>
+                        <span class="badge approved" id="admin-status">Approved</span>
                     </div>
                     <div class="row">
                         <span class="label">Reason</span>
-                        <span class="value">Request within policy limits</span>
+                        <span class="value" id="admin-reason">Request within policy limits</span>
                     </div>
                     <div class="row">
                         <span class="label">Escalation</span>
@@ -431,6 +464,113 @@
             <p>Aide coordinated this outcome in under 30 seconds • Powered by specialist AI agents</p>
         </div>
     </div>
+
+    <script>
+        /**
+         * This will be populated by the application after merge.
+         * The router result is formatted and injected here.
+         */
+        const aiData = window.aiData || {
+            request: 'Awaiting request...',
+            scheduling: null,
+            delegation: null,
+            admin: null,
+            message: { text: 'Processing...', channel: '#general', format: 'slack' },
+            timestamp: new Date().toISOString(),
+        };
+
+        function showProcessing() {
+            const statusDot = document.querySelector('.status-dot');
+            if (statusDot) statusDot.classList.add('processing');
+        }
+
+        function hideProcessing() {
+            const statusDot = document.querySelector('.status-dot');
+            if (statusDot) statusDot.classList.remove('processing');
+        }
+
+        /**
+         * Update dashboard with real data from router output.
+         */
+        function updateDashboard(data) {
+            // Update request section
+            if (data.request) {
+                const requestEl = document.querySelector('.request-text');
+                if (requestEl) requestEl.textContent = data.request;
+            }
+
+            // Update scheduling section
+            if (data.scheduling) {
+                const timeEl = document.getElementById('meeting-time');
+                if (timeEl) timeEl.textContent = data.scheduling.time;
+
+                const attendeesEl = document.getElementById('meeting-attendees');
+                if (attendeesEl) {
+                    attendeesEl.innerHTML = data.scheduling.attendees
+                        .map((name) => `<div class="attendee"><span>${name}</span></div>`)
+                        .join('');
+                }
+
+                const durationEl = document.getElementById('meeting-duration');
+                if (durationEl) durationEl.textContent = `${data.scheduling.duration} minutes`;
+
+                const confidenceEl = document.getElementById('meeting-confidence');
+                if (confidenceEl) {
+                    const badgeClass =
+                        data.scheduling.confidence === 'high' ? 'approved' :
+                        data.scheduling.confidence === 'medium' ? 'medium' : 'low';
+                    confidenceEl.className = `badge ${badgeClass}`;
+                    confidenceEl.textContent = data.scheduling.confidence;
+                }
+            }
+
+            // Update delegation section
+            if (data.delegation) {
+                const ownerEl = document.getElementById('task-owner');
+                if (ownerEl) ownerEl.textContent = data.delegation.owner;
+
+                const deadlineEl = document.getElementById('task-deadline');
+                if (deadlineEl) deadlineEl.textContent = data.delegation.deadline.split('T')[0];
+
+                const priorityEl = document.getElementById('task-priority');
+                if (priorityEl) {
+                    const badgeClass =
+                        data.delegation.priority === 'high' ? 'high' :
+                        data.delegation.priority === 'medium' ? 'medium' : 'low';
+                    priorityEl.className = `badge ${badgeClass}`;
+                    priorityEl.textContent = data.delegation.priority;
+                }
+
+                const reasonEl = document.getElementById('task-reason');
+                if (reasonEl) reasonEl.textContent = data.delegation.reasoning;
+            }
+
+            // Update admin section
+            if (data.admin) {
+                const statusEl = document.getElementById('admin-status');
+                if (statusEl) {
+                    statusEl.className = `badge ${data.admin.approved ? 'approved' : 'rejected'}`;
+                    statusEl.textContent = data.admin.approved ? 'APPROVED' : 'REJECTED';
+                }
+
+                const reasonEl = document.getElementById('admin-reason');
+                if (reasonEl) reasonEl.textContent = data.admin.reason;
+            }
+
+            // Update message preview
+            if (data.message) {
+                const msgEl = document.querySelector('.message-preview');
+                if (msgEl) msgEl.textContent = data.message.text;
+            }
+        }
+
+        // Show processing initially, then render data
+        showProcessing();
+        setTimeout(() => {
+            updateDashboard(aiData);
+            hideProcessing();
+        }, 500);
+    </script>
 </body>
 
 </html>
