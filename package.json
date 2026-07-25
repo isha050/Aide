@@ -5,7 +5,8 @@
   "type": "module",
   "description": "Aide router agent",
   "scripts": {
-    "prebuild": "node scripts/setup-alpine.js && prisma generate",
+    "postinstall": "prisma generate",
+    "prebuild": "prisma generate",
     "dev": "nitrostack-cli dev",
     "build": "nitrostack-cli build",
     "start": "npm run build && nitrostack-cli start",
