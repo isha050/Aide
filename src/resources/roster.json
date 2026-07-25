@@ -2,6 +2,7 @@
     "members": [
         {
             "name": "Alice",
+            "email": "alice@company.com",
             "role": "Backend Engineer",
             "skills": [
                 "backend",
@@ -12,6 +13,7 @@
         },
         {
             "name": "Bob",
+            "email": "bob@company.com",
             "role": "Frontend Engineer",
             "skills": [
                 "react",
@@ -22,6 +24,7 @@
         },
         {
             "name": "Charlie",
+            "email": "charlie@company.com",
             "role": "DevOps Engineer",
             "skills": [
                 "aws",
@@ -32,12 +35,39 @@
         },
         {
             "name": "David",
+            "email": "david@company.com",
             "role": "QA Engineer",
             "skills": [
                 "testing",
                 "automation"
             ],
             "currentWorkload": 2
+        },
+        {
+            "name": "Sumithra",
+            "email": "sumithra13022004@gmail.com",
+            "role": "Lead Software Engineer",
+            "skills": [
+                "scheduling",
+                "calendar",
+                "typescript",
+                "fullstack",
+                "architecture"
+            ],
+            "currentWorkload": 1
+        },
+        {
+            "name": "Sariga",
+            "email": "sarigasinisarigasini988@gmail.com",
+            "role": "Lead Software Engineer",
+            "skills": [
+                "scheduling",
+                "calendar",
+                "typescript",
+                "fullstack",
+                "architecture"
+            ],
+            "currentWorkload": 1
         }
     ]
 }
