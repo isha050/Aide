@@ -29,6 +29,10 @@ export interface BookMeetingOutput {
   confirmed: boolean;
   meetingId: string;
   reasoning?: string;
+  notificationSent?: {
+    channel: string;
+    message: string;
+  };
 }
 
 interface BusyBlock {
@@ -360,16 +364,36 @@ export async function bookMeeting(
   );
 
   if (res.confirmed) {
+    let sentMessage = '';
+    let sentChannel = '';
     try {
       const { postToSlack } = await import('./notify.js');
+      
+      const niceDate = new Intl.DateTimeFormat('en-US', {
+        weekday: 'long', month: 'long', day: 'numeric',
+        hour: 'numeric', minute: '2-digit', timeZoneName: 'short'
+      }).format(startDate);
+      
+      sentMessage = `🗓️ *New Meeting Booked!*\n*Attendees:* ${attendees.join(", ")}\n*Time:* ${niceDate}`;
+      sentChannel = '#announcements';
+
       await postToSlack({
-        text: `Meeting booked successfully with ${attendees.join(", ")} starting at ${startDate.toISOString()}`,
-        channel: '#general',
+        text: sentMessage,
+        channel: sentChannel,
         format: 'slack'
       });
     } catch (e) {
       console.warn("[Scheduling] Failed to send slack notification", e);
     }
+
+    return {
+      confirmed: res.confirmed,
+      meetingId: res.meetingId,
+      notificationSent: {
+        channel: sentChannel,
+        message: sentMessage
+      }
+    };
   }
 
   return {

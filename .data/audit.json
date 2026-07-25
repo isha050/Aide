@@ -169,5 +169,43 @@
       "meetingId": "0j48jbnev0dv7398qtua0ab1so"
     },
     "latencyMs": 6055
+  },
+  {
+    "timestamp": "2026-07-25T18:34:23.138Z",
+    "type": "tool_result",
+    "tool": "book_meeting",
+    "input": {
+      "attendees": [
+        "Charlie",
+        "David"
+      ],
+      "slot": "2026-07-27T08:00:00+05:30"
+    },
+    "output": {
+      "confirmed": true,
+      "meetingId": "bppn5timerj3nj1pbjh8v67v4g"
+    },
+    "latencyMs": 6108
+  },
+  {
+    "timestamp": "2026-07-25T19:12:08.392Z",
+    "type": "tool_result",
+    "tool": "book_meeting",
+    "input": {
+      "attendees": [
+        "Alice",
+        "Sumithra"
+      ],
+      "slot": "2026-08-01T08:00:00+05:30"
+    },
+    "output": {
+      "confirmed": true,
+      "meetingId": "1fnknfhc1ep5l8357n4hglrhg4",
+      "notificationSent": {
+        "channel": "#announcements",
+        "message": "🗓️ *New Meeting Booked!*\n*Attendees:* Alice, Sumithra\n*Time:* Saturday, August 1 at 8:00 AM GMT+5:30"
+      }
+    },
+    "latencyMs": 7871
   }
 ]
