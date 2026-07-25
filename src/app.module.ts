@@ -1,6 +1,7 @@
 import { McpApp, Module, ConfigModule } from '@nitrostack/core';
 import { CalculatorModule } from './modules/calculator/calculator.module.js';
 import { DelegationModule } from './modules/delegation/delegation.module.js';
+import { SchedulingModule } from './modules/scheduling/scheduling.module.js';
 import { SystemHealthCheck } from './health/system.health.js';
 
 /**
@@ -25,7 +26,8 @@ import { SystemHealthCheck } from './health/system.health.js';
   imports: [
     ConfigModule.forRoot(),
     CalculatorModule,
-    DelegationModule
+    DelegationModule,
+    SchedulingModule
   ],
   providers: [
     // Health Checks
