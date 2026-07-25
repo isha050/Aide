@@ -1,0 +1,10 @@
+{
+  "alert": {
+    "channel": "slack-#alerts",
+    "format": "markdown"
+  },
+  "notification": {
+    "channel": "email",
+    "format": "html"
+  }
+}
