@@ -1,12 +1,25 @@
 import { ToolDecorator as Tool, ExecutionContext, z } from '@nitrostack/core';
 import { findMeetingSlot, bookMeeting } from '../../scheduling.js';
 
+function parseAttendees(raw: any): string[] {
+  if (Array.isArray(raw)) return raw.map((s) => String(s).trim()).filter(Boolean);
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim();
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) return parsed.map((s) => String(s).trim()).filter(Boolean);
+      } catch (_) {}
+    }
+    return trimmed.split(',').map((s) => s.trim()).filter(Boolean);
+  }
+  return [];
+}
+
 /**
  * MCP tool wrappers for the scheduling functions.
  *
- * Each tool's `inputSchema` matches the contract exactly:
- * - find_meeting_slot: { attendees, durationMinutes, urgency }
- * - book_meeting:      { slot, attendees }
+ * Input schemas support both native types and UI form text coercions.
  */
 export class SchedulingTools {
   @Tool({
@@ -16,10 +29,11 @@ export class SchedulingTools {
       'Returns up to 3 conflict-free proposed time slots, any scheduling ' +
       'conflicts encountered, and reasoning about the search.',
     inputSchema: z.object({
-      attendees: z
-        .array(z.string())
-        .describe('List of attendee names to check availability for'),
-      durationMinutes: z
+      attendees: z.preprocess(
+        (val) => parseAttendees(val),
+        z.array(z.string()).min(1).describe('List of attendee names or emails')
+      ),
+      durationMinutes: z.coerce
         .number()
         .positive()
         .describe('Required meeting duration in minutes'),
@@ -52,16 +66,20 @@ export class SchedulingTools {
     },
   })
   async findSlot(input: any, ctx: ExecutionContext) {
+    const attendees = parseAttendees(input.attendees);
+    const durationMinutes = Number(input.durationMinutes) || 30;
+    const urgency = (input.urgency as 'low' | 'medium' | 'high') || 'high';
+
     ctx.logger.info('Finding meeting slot', {
-      attendees: input.attendees,
-      durationMinutes: input.durationMinutes,
-      urgency: input.urgency,
+      attendees,
+      durationMinutes,
+      urgency,
     });
 
     const result = await findMeetingSlot({
-      attendees: input.attendees,
-      durationMinutes: input.durationMinutes,
-      urgency: input.urgency,
+      attendees,
+      durationMinutes,
+      urgency,
     });
 
     ctx.logger.info('Slot search complete', {
@@ -82,10 +100,10 @@ export class SchedulingTools {
       slot: z
         .string()
         .describe('ISO 8601 timestamp of the slot to book'),
-      attendees: z
-        .array(z.string())
-        .min(1)
-        .describe('List of attendee names for the meeting'),
+      attendees: z.preprocess(
+        (val) => parseAttendees(val),
+        z.array(z.string()).min(1).describe('List of attendee names for the meeting')
+      ),
     }),
     examples: {
       request: {
@@ -99,14 +117,17 @@ export class SchedulingTools {
     },
   })
   async book(input: any, ctx: ExecutionContext) {
+    const attendees = parseAttendees(input.attendees);
+    const slot = String(input.slot || '').trim();
+
     ctx.logger.info('Booking meeting', {
-      slot: input.slot,
-      attendees: input.attendees,
+      slot,
+      attendees,
     });
 
     const result = await bookMeeting({
-      slot: input.slot,
-      attendees: input.attendees,
+      slot,
+      attendees,
     });
 
     ctx.logger.info('Booking result', {
