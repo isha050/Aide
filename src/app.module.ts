@@ -32,7 +32,7 @@ import { SystemHealthCheck } from './health/system.health.js';
     DelegationModule,
     SchedulingModule,
     AdminModule,
-    CommsModule
+    CommsModule,
     RouterModule                     // ← ADD THIS LINE
   ],
   providers: [
@@ -40,4 +40,4 @@ import { SystemHealthCheck } from './health/system.health.js';
     SystemHealthCheck,
   ]
 })
-export class AppModule {}
+export class AppModule { }
