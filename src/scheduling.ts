@@ -90,6 +90,56 @@ function intersectWorkingHours(
   return { startHour, endHour };
 }
 
+/**
+ * Normalize mock busy blocks onto search window dates so that mock data
+ * matches regardless of exact calendar year/month differences.
+ */
+function getNormalizedBusyBlocks(
+  attendees: string[],
+  data: CalendarData,
+  searchStart: Date,
+  windowDays: number
+): { start: Date; end: Date; person: string; originalStart: string; originalEnd: string }[] {
+  const result: { start: Date; end: Date; person: string; originalStart: string; originalEnd: string }[] = [];
+
+  for (const person of attendees) {
+    const personBusy = data[person]?.busy ?? [];
+    for (const block of personBusy) {
+      const origStart = new Date(block.start);
+      const origEnd = new Date(block.end);
+
+      // Check direct Date object overlay
+      result.push({
+        start: origStart,
+        end: origEnd,
+        person,
+        originalStart: block.start,
+        originalEnd: block.end,
+      });
+
+      // Project time-of-day onto each day in the search window for seamless testing
+      for (let dayOffset = 0; dayOffset < windowDays; dayOffset++) {
+        const projStart = new Date(searchStart);
+        projStart.setUTCDate(projStart.getUTCDate() + dayOffset);
+        projStart.setUTCHours(origStart.getUTCHours(), origStart.getUTCMinutes(), 0, 0);
+
+        const durationMs = origEnd.getTime() - origStart.getTime();
+        const projEnd = new Date(projStart.getTime() + durationMs);
+
+        result.push({
+          start: projStart,
+          end: projEnd,
+          person,
+          originalStart: projStart.toISOString(),
+          originalEnd: projEnd.toISOString(),
+        });
+      }
+    }
+  }
+
+  return result;
+}
+
 // ── find_meeting_slot ───────────────────────────────────────────────────────
 
 /**
@@ -135,24 +185,19 @@ export async function findMeetingSlot(
   const searchEnd = new Date(now);
   searchEnd.setUTCDate(searchEnd.getUTCDate() + windowDays);
 
-  // Collect every busy block tagged with the person's name
-  const allBusy: (BusyBlock & { person: string })[] = [];
-  for (const person of attendees) {
-    for (const b of data[person]?.busy ?? []) {
-      allBusy.push({ ...b, person });
-    }
-  }
+  // Normalize busy blocks across the search window
+  const normalizedBusy = getNormalizedBusyBlocks(attendees, data, now, windowDays);
 
   const proposedSlots: string[] = [];
   const conflictSet = new Set<string>();
 
-  // Start scanning from the beginning of "today's" working hours (or now)
+  // Start scanning from the beginning of working hours today (or now)
   let candidate = new Date(now);
   candidate.setUTCMinutes(0, 0, 0);
   candidate.setUTCHours(startHour);
   if (candidate < now) {
     candidate = new Date(now);
-    // Round up to the next STEP_MINUTES boundary
+    // Round up to next STEP_MINUTES boundary
     const mins = candidate.getUTCMinutes();
     const remainder = mins % STEP_MINUTES;
     if (remainder !== 0) {
@@ -182,15 +227,16 @@ export async function findMeetingSlot(
     }
 
     // Check for clashes with any attendee's busy blocks
-    const clashing = allBusy.filter((b) =>
-      overlaps(candidate, slotEnd, new Date(b.start), new Date(b.end))
+    const clashing = normalizedBusy.filter((b) =>
+      overlaps(candidate, slotEnd, b.start, b.end)
     );
 
     if (clashing.length === 0) {
       proposedSlots.push(candidate.toISOString());
     } else {
       for (const c of clashing) {
-        conflictSet.add(`${c.person}: ${c.start} – ${c.end}`);
+        const timeStr = `${c.start.toISOString().slice(11, 16)}–${c.end.toISOString().slice(11, 16)} UTC`;
+        conflictSet.add(`${c.person} busy (${timeStr})`);
       }
     }
 
