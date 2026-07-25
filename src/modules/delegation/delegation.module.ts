@@ -6,7 +6,7 @@ import { DelegationPrompts } from './delegation.prompts.js';
 @Module({
     name: 'delegation',
     description: 'Task delegation tools',
-    controllers: [DelegationTools]
+    controllers: [DelegationTools, DelegationResources]
 })
 export class DelegationModule { }
 
