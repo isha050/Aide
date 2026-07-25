@@ -9,6 +9,8 @@ import type {
   DraftedMessage,
 } from "./types";
 
+import { findMeetingSlot } from "./scheduling";
+
 // ========== ROUTING KEYWORDS ==========
 // The exact keyword sets that decide which sub-task a request needs.
 // Order and contents are unchanged from the original implementation.
@@ -84,7 +86,26 @@ export async function handleRequest(req: Request): Promise<RouterOutput> {
   // 3. Call stubs (hardcoded mock returns that match the contracts exactly)
   // TODO(Person A): await the real agent calls here instead of the stub
   // constants above. The surrounding routing logic should not need to change.
-  const schedulingResult = needsScheduling ? stubSchedulingResult : undefined;
+  let schedulingResult: MeetingSlotResult | undefined;
+
+if (needsScheduling) {
+  const slotResult = await findMeetingSlot({
+    attendees: ["alice", "bob"],
+    durationMinutes: 60,
+    urgency: "medium",
+  });
+
+  if (slotResult.proposedSlots.length > 0) {
+    schedulingResult = {
+      time: slotResult.proposedSlots[0],
+      attendees: ["alice", "bob"],
+      duration: 60,
+      confidence: "high",
+    };
+  } else {
+    schedulingResult = stubSchedulingResult;
+  }
+}
   const delegationResult = needsDelegation ? stubDelegationResult : undefined;
   const adminResult = needsAdmin ? stubAdminResult : undefined;
 
