@@ -1,6 +1,6 @@
 import 'dotenv/config';
-import localCalendar from "../resources/calendar.json" with { type: "json" };
-import roster from "../resources/roster.json" with { type: "json" };
+import localCalendar from "../resources/calendar.json" with { type: 'json' };
+import roster from "../resources/roster.json" with { type: 'json' };
 import { google } from 'googleapis';
 import fs from 'fs';
 import path from 'path';

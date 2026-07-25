@@ -53,4 +53,33 @@ export class CommsTools {
       format
     };
   }
+
+  @Tool({
+    name: 'send_message',
+    description: 'Send a message to a specific channel (e.g. Slack or Discord)',
+    inputSchema: z.object({
+      text: z.string().describe('The message content to send'),
+      channel: z.string().describe('The channel to send the message to (e.g., #general)'),
+      format: z.enum(['slack', 'discord']).describe('The format/platform to use')
+    })
+  })
+  async sendMessage(input: { text: string; channel: string; format: 'slack' | 'discord' }, ctx: ExecutionContext) {
+    ctx.logger.info(`Sending message to ${input.format} channel ${input.channel}`);
+    const { postToSlack, postToDiscord } = await import('../../notify.js');
+    
+    try {
+      if (input.format === 'slack') {
+        await postToSlack(input);
+        return { success: true, message: 'Message sent to Slack successfully.' };
+      } else if (input.format === 'discord') {
+        await postToDiscord(input);
+        return { success: true, message: 'Message sent to Discord successfully.' };
+      } else {
+        throw new Error(`Unsupported format: ${input.format}`);
+      }
+    } catch (e: any) {
+      ctx.logger.error(`Failed to send message: ${e.message}`);
+      return { success: false, error: e.message };
+    }
+  }
 }

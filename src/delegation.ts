@@ -1,5 +1,5 @@
 import { Request, TaskAssignment } from "./types.js";
-import roster from "./resources/roster.json" with { type: "json" };
+import roster from "./resources/roster.json" with { type: 'json' };
 
 export async function handleDelegation(req: Request): Promise<TaskAssignment> {
   const text = req.text.toLowerCase();
