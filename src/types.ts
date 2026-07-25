@@ -1,3 +1,8 @@
+export interface DraftedMessage {
+    text: string;
+    channel: string;
+    format: "slack" | "discord";
+}
 export interface MeetingSlotResult {
   time: string; // ISO 8601
   attendees: string[];

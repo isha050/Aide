@@ -1,0 +1,16 @@
+{
+    "tasks": [
+        {
+            "id": "TASK-001",
+            "owner": "Alice",
+            "status": "In Progress",
+            "deadline": "2026-07-28"
+        },
+        {
+            "id": "TASK-002",
+            "owner": "Charlie",
+            "status": "Pending",
+            "deadline": "2026-07-29"
+        }
+    ]
+}
