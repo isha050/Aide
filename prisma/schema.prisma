@@ -5,11 +5,7 @@ datasource db {
 
 generator client {
   provider      = "prisma-client-js"
-<<<<<<< HEAD
   binaryTargets = ["native", "linux-musl", "linux-musl-openssl-3.0.x", "linux-musl-arm64-openssl-3.0.x", "linux-musl-arm64-openssl-1.1.x"]
-=======
-  binaryTargets = ["native", "linux-musl-arm64-openssl-1.1.x", "linux-musl", "linux-musl-openssl-3.0.x", "linux-musl-arm64-openssl-3.0.x"]
->>>>>>> 284ed6e51ddcf1bd8b1ebaa4598648aed828aa43
 }
 
 model Member {
