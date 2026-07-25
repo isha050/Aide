@@ -1,10 +1,61 @@
 {
+  "incident": {
+    "channel": "slack-#incidents",
+    "format": "markdown",
+    "priority": "high",
+    "notifyOnCall": true
+  },
+  "meeting-notification": {
+    "channel": "slack-#general",
+    "format": "markdown",
+    "priority": "medium",
+    "includeCalendarLink": true
+  },
+  "task-assignment": {
+    "channel": "slack-#team-tasks",
+    "format": "markdown",
+    "priority": "medium",
+    "mentionAssignee": true
+  },
+  "approval-request": {
+    "channel": "slack-#approvals",
+    "format": "markdown",
+    "priority": "medium",
+    "includeDeadline": true
+  },
+  "approval-result": {
+    "channel": "email",
+    "format": "html",
+    "priority": "medium",
+    "ccManager": true
+  },
+  "reminder": {
+    "channel": "slack-dm",
+    "format": "text",
+    "priority": "low",
+    "maxRemindersPerItem": 3
+  },
+  "weekly-summary": {
+    "channel": "email",
+    "format": "html",
+    "priority": "low",
+    "sendDay": "friday",
+    "sendTime": "16:00"
+  },
+  "system-alert": {
+    "channel": "discord-#ops",
+    "format": "markdown",
+    "priority": "high",
+    "pingRole": "on-call"
+  },
   "alert": {
     "channel": "slack-#alerts",
-    "format": "markdown"
+    "format": "markdown",
+    "priority": "high"
   },
   "notification": {
     "channel": "email",
-    "format": "html"
+    "format": "html",
+    "priority": "medium"
   }
 }

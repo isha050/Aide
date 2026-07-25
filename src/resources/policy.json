@@ -1,8 +1,254 @@
 {
-  "purchase": {
-    "maxAmount": 500
+  "meetings": {
+    "booking": {
+      "maxDurationMinutes": 120,
+      "minNoticePeriodMinutes": 30,
+      "defaultDurationMinutes": 30,
+      "allowWeekendMeetings": false,
+      "requireAgendaForLongMeetings": true,
+      "longMeetingThresholdMinutes": 60
+    },
+    "quietHours": {
+      "enabled": true,
+      "start": "18:00",
+      "end": "09:00",
+      "timezone": "Asia/Kolkata",
+      "allowOverrideForUrgent": true
+    },
+    "recurring": {
+      "maxRecurringPerWeek": 5,
+      "maxRecurringDurationWeeks": 12,
+      "requireJustificationAfterWeeks": 4
+    },
+    "calendar": {
+      "workingHours": {
+        "start": "09:00",
+        "end": "18:00",
+        "timezone": "Asia/Kolkata"
+      },
+      "maxMeetingsPerDay": 6,
+      "lunchBreakProtection": {
+        "enabled": true,
+        "start": "12:30",
+        "end": "13:30"
+      },
+      "bufferBetweenMeetingsMinutes": 5,
+      "timezoneHandling": "convert-to-organizer"
+    }
   },
-  "access": {
-    "allowed": true
+
+  "delegation": {
+    "taskAssignment": {
+      "maxTasksPerEmployee": 8,
+      "workloadThreshold": {
+        "low": 3,
+        "medium": 5,
+        "high": 8
+      },
+      "skillBasedAssignment": {
+        "enabled": true,
+        "fallbackToLowestWorkload": true,
+        "requireExactSkillMatch": false
+      }
+    },
+    "reassignment": {
+      "allowReassignment": true,
+      "requireManagerApproval": false,
+      "maxReassignmentsPerTask": 2,
+      "cooldownHoursAfterReassignment": 24
+    },
+    "highPriority": {
+      "autoEscalateAfterHours": 4,
+      "maxHighPriorityPerPerson": 2,
+      "notifyManagerOnAssignment": true,
+      "bypassWorkloadThreshold": true
+    },
+    "overdueTasks": {
+      "gracePeriodHours": 24,
+      "autoEscalateToManager": true,
+      "sendReminderBeforeDeadlineHours": 12,
+      "maxOverdueBeforeReassignment": 2
+    }
+  },
+
+  "admin": {
+    "expenses": {
+      "maxAmountAutoApproval": 500,
+      "maxAmountManagerApproval": 5000,
+      "requireReceiptAbove": 50,
+      "allowedCategories": [
+        "software",
+        "hardware",
+        "travel",
+        "training",
+        "office-supplies",
+        "client-entertainment"
+      ],
+      "restrictedCategories": [
+        "personal",
+        "entertainment"
+      ]
+    },
+    "approvals": {
+      "escalationChain": ["team-lead", "manager", "director", "vp"],
+      "autoApproveTypes": ["access", "software-license", "meeting-room"],
+      "requireManualApproval": ["budget-increase", "new-hire", "vendor-contract"],
+      "timeoutHours": 48,
+      "reminderAfterHours": 24,
+      "autoRejectAfterHours": 168
+    },
+    "accessRequests": {
+      "autoApproveInternalTools": true,
+      "requireApprovalForExternalAccess": true,
+      "maxAccessDurationDays": 90,
+      "requireJustification": true,
+      "sensitiveSystemsRequireDirectorApproval": true,
+      "sensitiveSystems": ["production-db", "billing", "hr-system", "audit-logs"]
+    },
+    "policyExceptions": {
+      "allowExceptions": true,
+      "requireDirectorApproval": true,
+      "maxExceptionDurationDays": 30,
+      "requireDocumentation": true,
+      "auditAllExceptions": true
+    }
+  },
+
+  "communications": {
+    "channelRouting": {
+      "incident": {
+        "channel": "slack-#incidents",
+        "format": "markdown",
+        "priority": "high",
+        "notifyOnCall": true
+      },
+      "meeting-notification": {
+        "channel": "slack-#general",
+        "format": "markdown",
+        "priority": "medium",
+        "includeCalendarLink": true
+      },
+      "task-assignment": {
+        "channel": "slack-#team-tasks",
+        "format": "markdown",
+        "priority": "medium",
+        "mentionAssignee": true
+      },
+      "approval-request": {
+        "channel": "slack-#approvals",
+        "format": "markdown",
+        "priority": "medium",
+        "includeDeadline": true
+      },
+      "approval-result": {
+        "channel": "email",
+        "format": "html",
+        "priority": "medium",
+        "ccManager": true
+      },
+      "reminder": {
+        "channel": "slack-dm",
+        "format": "text",
+        "priority": "low",
+        "maxRemindersPerItem": 3
+      },
+      "weekly-summary": {
+        "channel": "email",
+        "format": "html",
+        "priority": "low",
+        "sendDay": "friday",
+        "sendTime": "16:00"
+      },
+      "system-alert": {
+        "channel": "discord-#ops",
+        "format": "markdown",
+        "priority": "high",
+        "pingRole": "on-call"
+      }
+    }
+  },
+
+  "security": {
+    "sensitiveInformation": {
+      "restrictedFields": ["salary", "ssn", "personal-email", "home-address", "bank-details"],
+      "redactInLogs": true,
+      "redactInNotifications": true
+    },
+    "restrictedChannels": {
+      "channels": ["public-slack", "external-discord"],
+      "requireApprovalForExternalNotifications": true,
+      "blockSensitiveDataToExternal": true
+    },
+    "auditLogging": {
+      "enabled": true,
+      "logAllAdminActions": true,
+      "logAllApprovals": true,
+      "logAllAccessChanges": true,
+      "logAllPolicyExceptions": true,
+      "retentionDays": 365
+    },
+    "dataRetention": {
+      "meetingRecordsRetentionDays": 180,
+      "taskHistoryRetentionDays": 365,
+      "notificationLogRetentionDays": 90,
+      "auditLogRetentionDays": 730
+    }
+  },
+
+  "team": {
+    "managerApproval": {
+      "requiredForReassignment": false,
+      "requiredForHighPriorityOverride": true,
+      "requiredForOvertimeWork": true,
+      "requiredForCrossTeamAssignment": true
+    },
+    "ownership": {
+      "requireTaskOwner": true,
+      "allowCoOwnership": true,
+      "maxCoOwners": 3,
+      "ownerMustAcknowledge": true,
+      "acknowledgmentTimeoutHours": 24
+    },
+    "availability": {
+      "vacationHandling": "redistribute",
+      "sickLeaveHandling": "hold-and-notify",
+      "unavailableRedirectToBackup": true,
+      "requireBackupDesignation": true,
+      "maxConsecutiveVacationDays": 15
+    }
+  },
+
+  "notifications": {
+    "channelSelection": {
+      "urgent": "slack-dm",
+      "high": "slack-channel",
+      "medium": "slack-channel",
+      "low": "email",
+      "info": "email-digest"
+    },
+    "urgentRules": {
+      "allowOutsideWorkingHours": true,
+      "requireAcknowledgment": true,
+      "escalateAfterMinutes": 15,
+      "escalationChain": ["assignee", "team-lead", "manager"],
+      "maxEscalationLevels": 3
+    },
+    "retryPolicy": {
+      "maxRetries": 3,
+      "retryIntervalMinutes": [5, 15, 60],
+      "fallbackChannel": "email"
+    },
+    "deduplication": {
+      "enabled": true,
+      "windowMinutes": 10,
+      "groupSimilarNotifications": true,
+      "maxBatchSize": 5
+    },
+    "doNotDisturb": {
+      "respectUserDND": true,
+      "queueDuringDND": true,
+      "deliverQueuedOnResume": true,
+      "overrideForCritical": true
+    }
   }
 }
