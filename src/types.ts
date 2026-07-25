@@ -24,11 +24,6 @@ export interface AdminDecision {
   escalationRequired: boolean;
 }
 
-export interface DraftedMessage {
-  text: string;
-  channel: string;
-  format: "slack" | "discord";
-}
 
 export interface Request {
   text: string;
