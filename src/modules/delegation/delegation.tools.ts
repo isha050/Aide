@@ -93,7 +93,7 @@ export class DelegationTools {
         const tasks = await prisma.task.findMany({ include: { owner: true } });
 
         return {
-            tasks: tasks.map(t => ({
+            tasks: tasks.map((t: any) => ({
                 id: t.taskId,
                 status: t.status,
                 owner: t.owner?.name,

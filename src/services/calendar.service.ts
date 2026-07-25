@@ -134,7 +134,7 @@ export async function getAvailabilityForAttendees(
 
     const wh = member?.calendarWorkingHours;
     mockData[email] = {
-      busy: member?.calendarBusyBlocks?.map(b => ({ start: b.start, end: b.end })) ?? [],
+      busy: member?.calendarBusyBlocks?.map((b: any) => ({ start: b.start, end: b.end })) ?? [],
       workingHours: {
         start: `${timeMin.slice(0, 10)}T${wh?.start || startW}`,
         end: `${timeMin.slice(0, 10)}T${wh?.end || endW}`,

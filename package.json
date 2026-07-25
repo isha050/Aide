@@ -5,6 +5,7 @@
   "type": "module",
   "description": "Aide router agent",
   "scripts": {
+    "postinstall": "prisma generate",
     "dev": "nitrostack-cli dev",
     "build": "nitrostack-cli build",
     "start": "npm run build && nitrostack-cli start",

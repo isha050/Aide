@@ -20,12 +20,12 @@ export class DelegationResources {
     });
 
     const roster = {
-      members: members.map(m => ({
+      members: members.map((m: any) => ({
         name: m.name,
         email: m.email,
         role: m.role,
         currentWorkload: m.currentWorkload,
-        skills: m.skills.map(s => s.skill)
+        skills: m.skills.map((s: any) => s.skill)
       }))
     };
 
