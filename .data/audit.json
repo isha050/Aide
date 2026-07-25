@@ -169,5 +169,39 @@
       "meetingId": "0j48jbnev0dv7398qtua0ab1so"
     },
     "latencyMs": 6055
+  },
+  {
+    "timestamp": "2026-07-25T18:22:14.214Z",
+    "type": "tool_result",
+    "tool": "book_meeting",
+    "input": {
+      "attendees": [
+        "keerthi",
+        "isha"
+      ],
+      "slot": "2026-08-12T10:00:00+05:30"
+    },
+    "output": {
+      "confirmed": true,
+      "meetingId": "mock-meeting-1785003733462-keerthi"
+    },
+    "latencyMs": 4977
+  },
+  {
+    "timestamp": "2026-07-25T19:00:13.164Z",
+    "type": "tool_result",
+    "tool": "book_meeting",
+    "input": {
+      "attendees": [
+        "keerthi",
+        "isha"
+      ],
+      "slot": "2026-08-12T10:00:00+05:30"
+    },
+    "output": {
+      "confirmed": true,
+      "meetingId": "mock-meeting-1785006012108-keerthi"
+    },
+    "latencyMs": 5470
   }
 ]
