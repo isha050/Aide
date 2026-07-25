@@ -1,5 +1,6 @@
 import { ResourceDecorator as Resource, ExecutionContext } from '@nitrostack/core';
-import roster from '../../resources/roster.json';
+import roster from '../../resources/roster.json' with { type: 'json' };
+
 
 /**
  * Exposes the team roster data as an MCP resource at `roster://team`.
