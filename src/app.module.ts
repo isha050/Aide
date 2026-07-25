@@ -28,7 +28,7 @@ import { SystemHealthCheck } from './health/system.health.js';
     ConfigModule.forRoot(),
     CalculatorModule,
     DelegationModule,
-    SchedulingModule
+    SchedulingModule,
     RouterModule                     // ← ADD THIS LINE
   ],
   providers: [

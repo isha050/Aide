@@ -1,6 +1,4 @@
-import { createRequire } from "module";
-const require = createRequire(import.meta.url);
-const calendar = require("./resources/calendar.json");
+import calendar from "./resources/calendar.json";
 
 // ── Interfaces ──────────────────────────────────────────────────────────────
 
