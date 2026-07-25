@@ -23,9 +23,27 @@ export class CommsTools {
     }
 
     const { action, details } = input;
+    const combinedLower = `${action} ${details}`.toLowerCase();
 
-    const channel = channelsConfig[action]?.channel || 'default-channel';
-    const format = channelsConfig[action]?.format || 'text';
+    // Smart keyword matching for channel routing
+    let matchedEvent = 'notification'; // fallback
+    for (const eventType of Object.keys(channelsConfig)) {
+      if (combinedLower.includes(eventType.toLowerCase().replace(/-/g, ' '))) {
+        matchedEvent = eventType;
+        break;
+      }
+    }
+    
+    // Explicit fallbacks based on common terms
+    if (combinedLower.includes('incident')) matchedEvent = 'incident';
+    else if (combinedLower.includes('meeting')) matchedEvent = 'meeting-notification';
+    else if (combinedLower.includes('task assignment') || combinedLower.includes('assign task') || combinedLower.includes('task')) matchedEvent = 'task-assignment';
+    else if (combinedLower.includes('approval')) matchedEvent = 'approval-request';
+    else if (combinedLower.includes('alert')) matchedEvent = 'alert';
+    else if (combinedLower.includes('reminder')) matchedEvent = 'reminder';
+
+    const channel = channelsConfig[matchedEvent]?.channel || 'default-channel';
+    const format = channelsConfig[matchedEvent]?.format || 'text';
 
     const text = `Draft for ${action}: ${details}`;
 
