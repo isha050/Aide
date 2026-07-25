@@ -69,7 +69,7 @@ export class RouterTools {
     // 3. Push to dashboard
     try {
       const widgetData = formatForWidget(result);
-      await fetch('http://localhost:3001/api/data', {
+      await fetch('http://127.0.0.1:3001/api/data', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(widgetData),
