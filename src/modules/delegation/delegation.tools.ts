@@ -34,15 +34,26 @@ export class DelegationTools {
             }
         }
 
-        // 2. Score candidates using the exact weighted formula
+        // 2. Score candidates using the exact weighted formula and robust synonym mapping
+        const skillMap: Record<string, string[]> = {
+            react: ["react", "frontend", "ui", "dashboard"],
+            backend: ["backend", "api", "server", "database"],
+            aws: ["aws", "docker", "deployment", "cloud", "kubernetes"],
+            testing: ["test", "qa", "automation"]
+        };
+
         const maxWorkload = 5;
         const scoredMembers = candidatePool.map((member: any) => {
             // Pad description to ensure exact word matches (prevents "ui" matching "build")
             const paddedDesc = ` ${taskDesc.replace(/[^a-z0-9+-]/g, ' ')} `;
             
             const matchedSkills = member.skills.filter((skill: string) => {
-                const paddedSkill = ` ${skill.toLowerCase()} `;
-                return paddedDesc.includes(paddedSkill);
+                const normalizedSkill = skill.toLowerCase();
+                if (paddedDesc.includes(` ${normalizedSkill} `)) return true;
+
+                // Also check if any known synonyms for this skill appear in the description
+                const synonyms = skillMap[normalizedSkill] || [];
+                return synonyms.some(syn => paddedDesc.includes(` ${syn} `));
             });
             
             const skillMatchScore = matchedSkills.length * 10; 
