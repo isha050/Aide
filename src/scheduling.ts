@@ -2,6 +2,7 @@ import {
   getAvailabilityForAttendees,
   resolveEmployeeEmail,
   AvailabilityMap,
+  bookGoogleCalendarEvent,
 } from "./services/calendar.service.js";
 
 // ── Interfaces ──────────────────────────────────────────────────────────────
@@ -308,8 +309,20 @@ export async function bookMeeting(
 
   const resolved = attendees.map(resolveEmployeeEmail);
 
+  // Default to 30 mins if not specified elsewhere (since the input to bookMeeting doesn't have duration).
+  // In a real app we'd pass duration in BookMeetingInput, but assuming 30 min default here based on findSlot
+  const startDate = new Date(slot);
+  const endDate = new Date(startDate.getTime() + 30 * 60_000);
+
+  const res = await bookGoogleCalendarEvent(
+    resolved,
+    startDate.toISOString(),
+    endDate.toISOString(),
+    `Meeting with ${attendees.join(", ")}`
+  );
+
   return {
-    confirmed: true,
-    meetingId: `meeting-${Date.now()}-${resolved[0].split("@")[0]}`,
+    confirmed: res.confirmed,
+    meetingId: res.meetingId,
   };
 }

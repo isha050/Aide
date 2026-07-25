@@ -1,5 +1,6 @@
 import { ToolDecorator as Tool, ExecutionContext, z } from '@nitrostack/core';
 import { findMeetingSlot, bookMeeting } from '../../scheduling.js';
+import { AuditService } from '../../services/audit.service.js';
 
 function parseAttendees(raw: any): string[] {
   if (Array.isArray(raw)) return raw.map((s) => String(s).trim()).filter(Boolean);
@@ -66,6 +67,7 @@ export class SchedulingTools {
     },
   })
   async findSlot(input: any, ctx: ExecutionContext) {
+    const startTime = Date.now();
     const attendees = parseAttendees(input.attendees);
     const durationMinutes = Number(input.durationMinutes) || 30;
     const urgency = (input.urgency as 'low' | 'medium' | 'high') || 'high';
@@ -76,18 +78,37 @@ export class SchedulingTools {
       urgency,
     });
 
-    const result = await findMeetingSlot({
-      attendees,
-      durationMinutes,
-      urgency,
-    });
+    try {
+      const result = await findMeetingSlot({
+        attendees,
+        durationMinutes,
+        urgency,
+      });
 
-    ctx.logger.info('Slot search complete', {
-      slotsFound: result.proposedSlots.length,
-      conflictsFound: result.conflicts.length,
-    });
+      ctx.logger.info('Slot search complete', {
+        slotsFound: result.proposedSlots.length,
+        conflictsFound: result.conflicts.length,
+      });
 
-    return result;
+      AuditService.log({
+        type: 'tool_result',
+        tool: 'find_meeting_slot',
+        input,
+        output: result,
+        latencyMs: Date.now() - startTime,
+      });
+
+      return result;
+    } catch (err: any) {
+      AuditService.log({
+        type: 'tool_result',
+        tool: 'find_meeting_slot',
+        input,
+        output: { error: err.message },
+        latencyMs: Date.now() - startTime,
+      });
+      throw err;
+    }
   }
 
   @Tool({
@@ -117,6 +138,7 @@ export class SchedulingTools {
     },
   })
   async book(input: any, ctx: ExecutionContext) {
+    const startTime = Date.now();
     const attendees = parseAttendees(input.attendees);
     const slot = String(input.slot || '').trim();
 
@@ -125,16 +147,35 @@ export class SchedulingTools {
       attendees,
     });
 
-    const result = await bookMeeting({
-      slot,
-      attendees,
-    });
+    try {
+      const result = await bookMeeting({
+        slot,
+        attendees,
+      });
 
-    ctx.logger.info('Booking result', {
-      confirmed: result.confirmed,
-      meetingId: result.meetingId,
-    });
+      ctx.logger.info('Booking result', {
+        confirmed: result.confirmed,
+        meetingId: result.meetingId,
+      });
 
-    return result;
+      AuditService.log({
+        type: 'tool_result',
+        tool: 'book_meeting',
+        input,
+        output: result,
+        latencyMs: Date.now() - startTime,
+      });
+
+      return result;
+    } catch (err: any) {
+      AuditService.log({
+        type: 'tool_result',
+        tool: 'book_meeting',
+        input,
+        output: { error: err.message },
+        latencyMs: Date.now() - startTime,
+      });
+      throw err;
+    }
   }
 }
