@@ -27,6 +27,7 @@ export interface BookMeetingInput {
 export interface BookMeetingOutput {
   confirmed: boolean;
   meetingId: string;
+  reasoning?: string;
 }
 
 interface BusyBlock {
@@ -313,6 +314,36 @@ export async function bookMeeting(
   // In a real app we'd pass duration in BookMeetingInput, but assuming 30 min default here based on findSlot
   const startDate = new Date(slot);
   const endDate = new Date(startDate.getTime() + 30 * 60_000);
+
+  // Check for conflicts before actually booking
+  const { availability } = await getAvailabilityForAttendees(
+    attendees,
+    startDate.toISOString(),
+    endDate.toISOString()
+  );
+
+  const startMs = startDate.getTime();
+  const endMs = endDate.getTime();
+  
+  const hasConflict = attendees.some(attendee => {
+     const email = resolveEmployeeEmail(attendee);
+     const personData = availability[email];
+     if (!personData || !personData.busy) return false;
+     
+     return personData.busy.some(block => {
+        const bStart = new Date(block.start).getTime();
+        const bEnd = new Date(block.end).getTime();
+        return startMs < bEnd && bStart < endMs;
+     });
+  });
+
+  if (hasConflict) {
+    return {
+      confirmed: false,
+      meetingId: "",
+      reasoning: "Cannot book: One or more attendees have a conflicting calendar event at this time."
+    };
+  }
 
   const res = await bookGoogleCalendarEvent(
     resolved,
