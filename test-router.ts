@@ -3,7 +3,7 @@ import type { Request } from "./src/types";
 
 async function run() {
   const sample: Request = {
-    text: "Book a meeting with eng and design for incident review",
+    text: "Approve expense of 500 for new monitors",
     userId: "user-123",
     timestamp: new Date().toISOString(),
   };
