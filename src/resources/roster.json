@@ -1,0 +1,43 @@
+{
+    "members": [
+        {
+            "name": "Alice",
+            "role": "Backend Engineer",
+            "skills": [
+                "backend",
+                "database",
+                "incident-response"
+            ],
+            "currentWorkload": 3
+        },
+        {
+            "name": "Bob",
+            "role": "Frontend Engineer",
+            "skills": [
+                "react",
+                "ui",
+                "ux"
+            ],
+            "currentWorkload": 1
+        },
+        {
+            "name": "Charlie",
+            "role": "DevOps Engineer",
+            "skills": [
+                "aws",
+                "docker",
+                "kubernetes"
+            ],
+            "currentWorkload": 4
+        },
+        {
+            "name": "David",
+            "role": "QA Engineer",
+            "skills": [
+                "testing",
+                "automation"
+            ],
+            "currentWorkload": 2
+        }
+    ]
+}
