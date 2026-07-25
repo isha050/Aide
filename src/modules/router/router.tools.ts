@@ -1,6 +1,5 @@
 import { ToolDecorator as Tool, ExecutionContext, z } from '@nitrostack/core';
 import { handleRequest } from '../../router.js';
-import { processRouterOutput, formatForWidget } from '../../integration.js';
 import type { Request } from '../../types.js';
 
 export class RouterTools {
@@ -46,7 +45,6 @@ export class RouterTools {
       timestamp: input.timestamp || new Date().toISOString()
     };
 
-    // 1. Run the router logic
     const result = await handleRequest(req);
 
     ctx.logger.info('Router finished', {
@@ -55,31 +53,6 @@ export class RouterTools {
       hasAdmin: !!result.adminResult
     });
 
-    // 2. Post to Slack or Discord automatically on every request
-    try {
-      await processRouterOutput(result);
-      ctx.logger.info('Notification posted', { format: result.finalMessage.format, channel: result.finalMessage.channel });
-    } catch (err) {
-      ctx.logger.warn('Notification failed (non-fatal)', { error: (err as Error).message });
-    }
-
-    // 3. Format for dashboard widget and push to the dashboard API
-    const widgetData = formatForWidget(result);
-
-    try {
-      await fetch('http://localhost:3001/api/data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(widgetData),
-      });
-      ctx.logger.info('Dashboard updated');
-    } catch (err) {
-      ctx.logger.warn('Dashboard push failed (non-fatal)', { error: (err as Error).message });
-    }
-
-    return {
-      ...result,
-      widgetData,
-    };
+    return result;
   }
 }

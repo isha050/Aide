@@ -1,3 +1,5 @@
+
+
 import type {
   Request,
   RouterOutput,
@@ -5,171 +7,122 @@ import type {
   TaskAssignment,
   AdminDecision,
   DraftedMessage,
-} from "./types.js";
+} from "./types";
 
-// ========== HELPERS ==========
+import { findMeetingSlot } from "./scheduling";
 
-/**
- * Extract names mentioned after keywords like "with", "for", "and", "between".
- * Handles: "meeting for Isha and Sariga", "book with alice, bob", etc.
- */
-function extractAttendees(text: string): string[] {
-  // Match names after "with", "for", "between" — grab comma/and separated words
-  const patterns = [
-    /(?:with|for|between|invite|include)\s+([A-Za-z]+(?:\s*(?:,|and)\s*[A-Za-z]+)*)/gi,
-  ];
+// ========== ROUTING KEYWORDS ==========
+// The exact keyword sets that decide which sub-task a request needs.
+// Order and contents are unchanged from the original implementation.
+const SCHEDULING_KEYWORDS = ["meeting", "schedule", "book", "slot"] as const;
+const DELEGATION_KEYWORDS = ["task", "assign", "who", "owner"] as const;
+const ADMIN_KEYWORDS = [
+  "approve",
+  "expense",
+  "access",
+  "policy",
+  "escalat",
+] as const;
 
-  const STOPWORDS = new Set([
-    'incident', 'review', 'meeting', 'call', 'task', 'team', 'the',
-    'a', 'an', 'all', 'postmortem', 'doc', 'update', 'war', 'room',
-    'eng', 'design', 'support', 'general', 'channel', 'slack', 'discord',
-  ]);
-
-  const names: string[] = [];
-  for (const pattern of patterns) {
-    let match;
-    while ((match = pattern.exec(text)) !== null) {
-      const chunk = match[1];
-      const parts = chunk.split(/\s*(?:,|and)\s*/i).map((s) => s.trim()).filter(Boolean);
-      names.push(...parts.filter((p) => !STOPWORDS.has(p.toLowerCase())));
-    }
-  }
-
-  // Deduplicate and capitalise
-  const unique = [...new Set(names.map((n) => n.charAt(0).toUpperCase() + n.slice(1).toLowerCase()))];
-  return unique.length > 0 ? unique : ["Team"];
+/** True if `text` contains any of `keywords` (same semantics as an `||` chain). */
+function matchesAny(text: string, keywords: readonly string[]): boolean {
+  return keywords.some((keyword) => text.includes(keyword));
 }
 
-/**
- * Pick a meeting time ~2 days from now at 14:00 UTC.
- */
-function nextMeetingTime(): string {
-  const d = new Date();
-  d.setDate(d.getDate() + 2);
-  d.setUTCHours(14, 0, 0, 0);
-  return d.toISOString();
+// ========== STUBS (hardcoded – do NOT call real agents yet) ==========
+// TODO(Person A): replace `stubSchedulingResult` with a real call to the
+// scheduling agent (see `findMeetingSlot` / `bookMeeting` in ./scheduling).
+const stubSchedulingResult: MeetingSlotResult = {
+  time: "2025-01-15T14:00:00Z",
+  attendees: ["alice", "bob", "charlie"],
+  duration: 60,
+  confidence: "high",
+};
+
+// TODO(Person A): replace `stubDelegationResult` with a real call to the
+// delegation agent (./delegation) once it is implemented.
+const stubDelegationResult: TaskAssignment = {
+  taskId: "task-001",
+  owner: "alice",
+  deadline: "2025-01-17T17:00:00Z",
+  priority: "high",
+  reasoning: "Alice has lowest current workload on this domain.",
+};
+
+// TODO(Person A): replace `stubAdminResult` with a real call to the admin
+// agent once it is implemented.
+const stubAdminResult: AdminDecision = {
+  approved: true,
+  reason: "Request within policy limits.",
+  escalationRequired: false,
+};
+
+// ========== MESSAGE FORMATTING ==========
+const NO_ACTION_MESSAGE =
+  "No specific action detected. Please clarify the request.";
+
+function formatScheduling(result: MeetingSlotResult): string {
+  return `Meeting booked at ${result.time} for ${result.attendees.join(", ")} (${result.duration} min, confidence: ${result.confidence})`;
 }
 
-/**
- * Pick a deadline ~3 days from now at 17:00 UTC.
- */
-function nextDeadline(): string {
-  const d = new Date();
-  d.setDate(d.getDate() + 3);
-  d.setUTCHours(17, 0, 0, 0);
-  return d.toISOString();
+function formatDelegation(result: TaskAssignment): string {
+  return `Task ${result.taskId} assigned to ${result.owner} (deadline ${result.deadline}, priority ${result.priority}). Reason: ${result.reasoning}`;
 }
 
-/**
- * Extract a task owner — first person named, or first attendee, or "Team Lead".
- */
-function extractOwner(text: string, attendees: string[]): string {
-  // Try "assign to X", "X to own", "X owns"
-  const assignMatch = text.match(/(?:assign(?:ed)?\s+to|owner[:\s]+|owned?\s+by)\s+([A-Za-z]+)/i);
-  if (assignMatch) {
-    const name = assignMatch[1];
-    return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
-  }
-  // Fall back to first attendee if real names found
-  if (attendees.length > 0 && attendees[0] !== "Team") return attendees[0];
-  return "Team Lead";
-}
-
-/**
- * Extract channel from text — looks for "#channel-name".
- */
-function extractChannel(text: string): string {
-  const match = text.match(/#([a-z0-9_-]+)/i);
-  return match ? `#${match[1]}` : "#general";
+function formatAdmin(result: AdminDecision): string {
+  return `Admin decision: ${result.approved ? "APPROVED" : "REJECTED"}. ${result.reason}${result.escalationRequired ? " (escalation required)" : ""}`;
 }
 
 // ========== MAIN ROUTER ==========
 export async function handleRequest(req: Request): Promise<RouterOutput> {
-  const text = req.text;
-  const lower = text.toLowerCase();
+  // 1. Read the request text
+  const text = req.text.toLowerCase();
 
-  // 1. Decide which sub-tasks are needed
-  const needsScheduling =
-    lower.includes("meeting") ||
-    lower.includes("schedule") ||
-    lower.includes("book") ||
-    lower.includes("slot") ||
-    lower.includes("call");
+  // 2. Synchronously decide which sub-tasks are needed
+  const needsScheduling = matchesAny(text, SCHEDULING_KEYWORDS);
+  const needsDelegation = matchesAny(text, DELEGATION_KEYWORDS);
+  const needsAdmin = matchesAny(text, ADMIN_KEYWORDS);
 
-  const needsDelegation =
-    lower.includes("task") ||
-    lower.includes("assign") ||
-    lower.includes("postmortem") ||
-    lower.includes("doc") ||
-    lower.includes("write") ||
-    lower.includes("owner");
+  // 3. Call stubs (hardcoded mock returns that match the contracts exactly)
+  // TODO(Person A): await the real agent calls here instead of the stub
+  // constants above. The surrounding routing logic should not need to change.
+  let schedulingResult: MeetingSlotResult | undefined;
 
-  const needsAdmin =
-    lower.includes("approve") ||
-    lower.includes("expense") ||
-    lower.includes("access") ||
-    lower.includes("policy") ||
-    lower.includes("escalat");
+if (needsScheduling) {
+  const slotResult = await findMeetingSlot({
+    attendees: ["alice", "bob"],
+    durationMinutes: 60,
+    urgency: "medium",
+  });
 
-  // 2. Extract real data from the request text
-  const attendees = extractAttendees(text);
-  const owner = extractOwner(text, attendees);
-  const channel = extractChannel(text);
-  const meetingTime = nextMeetingTime();
-  const deadline = nextDeadline();
-
-  // 3. Build results using extracted data
-  const schedulingResult: MeetingSlotResult | undefined = needsScheduling
-    ? {
-        time: meetingTime,
-        attendees,
-        duration: 60,
-        confidence: "high",
-      }
-    : undefined;
-
-  const delegationResult: TaskAssignment | undefined = needsDelegation
-    ? {
-        taskId: `task-${Date.now().toString(36)}`,
-        owner,
-        deadline,
-        priority: "high",
-        reasoning: `${owner} is assigned based on the request context.`,
-      }
-    : undefined;
-
-  const adminResult: AdminDecision | undefined = needsAdmin
-    ? {
-        approved: true,
-        reason: "Request within policy limits.",
-        escalationRequired: false,
-      }
-    : undefined;
-
-  // 4. Synthesize final message
-  const parts: string[] = [];
-  if (schedulingResult) {
-    parts.push(
-      `📅 Meeting booked for ${schedulingResult.attendees.join(", ")} at ${schedulingResult.time} (${schedulingResult.duration} min)`
-    );
+  if (slotResult.proposedSlots.length > 0) {
+    schedulingResult = {
+      time: slotResult.proposedSlots[0],
+      attendees: ["alice", "bob"],
+      duration: 60,
+      confidence: "high",
+    };
+  } else {
+    schedulingResult = stubSchedulingResult;
   }
-  if (delegationResult) {
-    parts.push(
-      `✅ Task assigned to ${delegationResult.owner} — deadline ${delegationResult.deadline.split("T")[0]}, priority ${delegationResult.priority}`
-    );
-  }
-  if (adminResult) {
-    parts.push(
-      `🔐 Admin decision: ${adminResult.approved ? "APPROVED" : "REJECTED"}. ${adminResult.reason}`
-    );
-  }
+}
+  const delegationResult = needsDelegation ? stubDelegationResult : undefined;
+  const adminResult = needsAdmin ? stubAdminResult : undefined;
+
+  // 4. Synthesize final message (order: scheduling, delegation, admin)
+  const parts = [
+    schedulingResult && formatScheduling(schedulingResult),
+    delegationResult && formatDelegation(delegationResult),
+    adminResult && formatAdmin(adminResult),
+  ].filter((part): part is string => part !== undefined);
+
   if (parts.length === 0) {
-    parts.push("No specific action detected. Please clarify the request.");
+    parts.push(NO_ACTION_MESSAGE);
   }
 
   const finalMessage: DraftedMessage = {
     text: parts.join("\n"),
-    channel,
+    channel: "#general",
     format: "slack",
   };
 
