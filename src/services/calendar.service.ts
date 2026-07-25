@@ -1,6 +1,10 @@
 import 'dotenv/config';
 import localCalendar from "../resources/calendar.json";
 import roster from "../resources/roster.json";
+import { google } from 'googleapis';
+import fs from 'fs';
+import path from 'path';
+import nodemailer from 'nodemailer';
 
 export interface BusyRange {
   start: string;
@@ -152,4 +156,86 @@ export async function getAvailabilityForAttendees(
   }
 
   return { availability: mockData, isLive: false };
+}
+
+async function sendEtherealInvite(attendees: string[], summary: string, startTime: string) {
+  try {
+    const testAccount = await nodemailer.createTestAccount();
+    const transporter = nodemailer.createTransport({
+      host: "smtp.ethereal.email",
+      port: 587,
+      secure: false, 
+      auth: {
+        user: testAccount.user, 
+        pass: testAccount.pass, 
+      },
+    });
+
+    const info = await transporter.sendMail({
+      from: '"NitroStack Scheduler" <scheduler@nitrostack.com>',
+      to: attendees.join(', '),
+      subject: `Meeting Invite: ${summary}`,
+      text: `You have been invited to ${summary} at ${startTime}.`,
+      html: `<b>You have been invited to ${summary} at ${startTime}.</b>`
+    });
+
+    console.log(`[CalendarService] 📧 Email invites sent to attendees! Preview URL: ${nodemailer.getTestMessageUrl(info)}`);
+  } catch (e) {
+    console.error("[CalendarService] Failed to send mock email invite", e);
+  }
+}
+
+/**
+ * Attempts to book a meeting via Google Calendar events.insert API.
+ * Uses a Service Account JSON file if present, otherwise falls back.
+ */
+export async function bookGoogleCalendarEvent(
+  attendees: string[],
+  startTime: string,
+  endTime: string,
+  summary: string = "Scheduled Meeting"
+): Promise<{ confirmed: boolean; meetingId: string; live: boolean }> {
+  
+  const keyFilePath = path.join(process.cwd(), '.data', 'google-credentials.json');
+  
+  // ALWAYS send out email invites to attendees (using mock Ethereal mail so it works in dev)
+  await sendEtherealInvite(attendees, summary, startTime);
+
+  if (fs.existsSync(keyFilePath)) {
+    try {
+      const auth = new google.auth.GoogleAuth({
+        keyFile: keyFilePath,
+        scopes: ['https://www.googleapis.com/auth/calendar.events'],
+      });
+
+      const calendar = google.calendar({ version: 'v3', auth });
+
+      const res = await calendar.events.insert({
+        calendarId: 'primary', // Note: Make sure the Service Account has been shared to the target calendar
+        requestBody: {
+          summary,
+          description: `Attendees: ${attendees.join(', ')}`,
+          start: { dateTime: startTime },
+          end: { dateTime: endTime },
+          // We omit 'attendees' because standard Service Accounts cannot invite 
+          // others without Google Workspace Domain-Wide Delegation of Authority.
+        }
+      });
+
+      if (res.data && res.data.id) {
+        return { confirmed: true, meetingId: res.data.id, live: true };
+      }
+    } catch (err: any) {
+      console.warn(`[CalendarService] Live API insert failed via Service Account:`, err.message);
+    }
+  } else {
+    console.warn(`[CalendarService] .data/google-credentials.json not found. Falling back to mock booking.`);
+  }
+
+  // Fallback to local booking if API call fails or no credentials file
+  return {
+    confirmed: true,
+    meetingId: `mock-meeting-${Date.now()}-${attendees[0]?.split("@")[0] || "unknown"}`,
+    live: false,
+  };
 }
