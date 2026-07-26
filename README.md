@@ -10,6 +10,9 @@ Aide is a **Model Context Protocol (MCP)** server built with [NitroStack](https:
 - **Communications Routing:** Automatically categorizes notifications (incidents, approvals, reminders) and routes them to the correct Slack or Discord channel.
 - **Full Database Persistence:** Powered by PostgreSQL and Prisma ORM.
 
+<img width="897" height="1120" alt="image" src="https://github.com/user-attachments/assets/469247d4-8ce1-41e9-9b5d-59c9f542721c" />
+
+
 ## Tech Stack
 
 - **Framework:** [NitroStack](https://nitrostack.ai) (MCP Server)
@@ -17,6 +20,9 @@ Aide is a **Model Context Protocol (MCP)** server built with [NitroStack](https:
 - **Database:** PostgreSQL
 - **ORM:** Prisma
 - **Validation:** Zod
+
+  <img width="1482" height="976" alt="image" src="https://github.com/user-attachments/assets/3fe02db1-01bc-4dbe-8ae7-cc2eaaa87046" />
+
 
 ## Setup & Installation
 
